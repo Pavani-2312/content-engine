@@ -35,5 +35,5 @@ video_client = OpenAI(
 
 # Model constants
 TEXT_MODEL = "openai/gpt-4o-mini"
-IMAGE_MODEL = "black-forest-labs/flux.2-klein-4b"
+IMAGE_MODEL = "black-forest-labs/flux-schnell"
 VIDEO_MODEL = "alibaba/wan-2.6"
