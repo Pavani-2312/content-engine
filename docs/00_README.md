@@ -32,7 +32,7 @@ content-engine/
 ├─ image_gen.py      # Image prompt + GPT Image call — build
 ├─ video_gen.py      # Motion prompt + Runway call — build
 ├─ config.py         # API keys + model settings — provided
-└─ .env              # OPENROUTER_API_KEY=...  RUNWAY_API_KEY=...
+└─ .env              # CONTENT_API_KEY=...  RUNWAY_API_KEY=...
 ```
 
 ## Quick Start

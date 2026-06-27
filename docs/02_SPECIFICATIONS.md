@@ -268,7 +268,7 @@ MOTION_PROMPT = (
 | Social JSON fails to parse | Retry once with corrective prompt; on second failure, display raw text with a warning banner instead of structured tabs. |
 | GPT Image call fails | Retry once with simplified prompt; on second failure, show placeholder image icon and `st.error`, skip Step 5 (video) since it requires the hero image. |
 | Runway call fails or times out | Show `st.error` with a "video generation failed/timed out" message; other four assets remain visible. |
-| Missing API key in `.env` | Fail fast at app startup with a clear `st.error` listing which key is missing. |
+| Missing API key in `.env` | Fail fast at app startup with a clear `st.error` listing which key is missing (`CONTENT_API_KEY` and/or `RUNWAY_API_KEY`). |
 
 ---
 

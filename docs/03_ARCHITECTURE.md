@@ -47,7 +47,7 @@ content-engine/
 ├─ image_gen.py   # Image prompt formula + GPT Image client  — BUILD
 ├─ video_gen.py   # Motion prompt + Runway client            — BUILD
 ├─ config.py      # API keys, model names, constants         — PROVIDED
-└─ .env           # OPENROUTER_API_KEY=...  RUNWAY_API_KEY=...
+└─ .env           # CONTENT_API_KEY=...  RUNWAY_API_KEY=...
 ```
 
 ### 3.1 `app.py` (provided)
@@ -86,7 +86,10 @@ def generate_video(image_url: str, motion_prompt: str) -> str: ...  # returns UR
 
 ### 3.5 `config.py` (provided)
 - Loads `.env` via `python-dotenv`.
-- Exposes pre-configured clients: `openrouter_client`, `gpt_image_client`, `runway_client`.
+- Exposes pre-configured clients:
+  - `openrouter_client` — authenticated with `CONTENT_API_KEY` (text generation)
+  - `gpt_image_client` — authenticated with `CONTENT_API_KEY` (image generation)
+  - `runway_client` — authenticated with `RUNWAY_API_KEY` (video generation only)
 - Exposes model constants: `TEXT_MODEL`, `IMAGE_MODEL = "gpt-image-2"`, `VIDEO_MODEL`.
 
 ## 4. Orchestration Logic (the "chain")
