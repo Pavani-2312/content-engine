@@ -1,4 +1,4 @@
-from config import image_client, TEXT_MODEL
+from config import image_client, IMAGE_MODEL
 
 STYLE_MAP = {
     "playful": "bright flat illustration",
@@ -18,66 +18,45 @@ def build_image_prompt(product: str, tagline: str, tone: str) -> str:
 def generate_image(prompt: str) -> str:
     try:
         response = image_client.chat.completions.create(
-            model=TEXT_MODEL,
+            model=IMAGE_MODEL,
             messages=[
                 {
                     "role": "user",
-                    "content": f"Generate an image: {prompt}"
-                }
-            ],
-            tools=[
-                {
-                    "type": "openrouter:image_generation"
+                    "content": prompt
                 }
             ]
         )
         
-        # Extract image URL from tool call response
-        message = response.choices[0].message
+        # Extract image URL from response
+        content = response.choices[0].message.content
         
-        # Check if tool was called
-        if hasattr(message, 'tool_calls') and message.tool_calls:
-            # Image URL should be in the tool call result
-            return message.tool_calls[0].function.arguments
-        
-        # Otherwise check content for URL
-        content = message.content
+        # If content contains URL, extract it
         if content and "http" in content:
-            # Extract URL from content
             import re
             urls = re.findall(r'https?://[^\s]+', content)
             if urls:
-                return urls[0]
+                return urls[0].rstrip(')')
         
         return content
         
-    except Exception as e:
+    except Exception:
         # Retry with simplified prompt
         simplified = prompt.split("Evoke")[0].strip()
         response = image_client.chat.completions.create(
-            model=TEXT_MODEL,
+            model=IMAGE_MODEL,
             messages=[
                 {
                     "role": "user",
-                    "content": f"Generate an image: {simplified}"
-                }
-            ],
-            tools=[
-                {
-                    "type": "openrouter:image_generation"
+                    "content": simplified
                 }
             ]
         )
+        content = response.choices[0].message.content
         
-        message = response.choices[0].message
-        if hasattr(message, 'tool_calls') and message.tool_calls:
-            return message.tool_calls[0].function.arguments
-        
-        content = message.content
         if content and "http" in content:
             import re
             urls = re.findall(r'https?://[^\s]+', content)
             if urls:
-                return urls[0]
+                return urls[0].rstrip(')')
         
         return content
