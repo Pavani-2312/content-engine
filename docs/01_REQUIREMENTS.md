@@ -48,8 +48,8 @@ button press.
 | FR-4 | The tagline shall be a maximum of 10 words and shall contain no hashtags. | Must |
 | FR-5 | The system shall generate a **200-word blog introduction** using role-based prompting (persona: content strategist), incorporating the tagline generated in FR-3. | Must |
 | FR-6 | The system shall generate a **social media post set** as structured JSON output containing `twitter` (≤280 chars), `instagram` (≤2200 chars), and `linkedin` (≤700 chars) fields. The social post generator receives `product` and `tone` only; `audience` and `tagline` are intentionally omitted from this step to keep the prompt focused on platform-specific copy constraints. | Must |
-| FR-7 | The system shall construct an image prompt programmatically from product name, tagline, and tone, then generate a **hero image** via the GPT Image API (`gpt-image-2`). | Must |
-| FR-8 | The system shall feed the generated hero image into the Runway API with a motion prompt to produce a **5–8 second promotional video**. If the hero image generation step fails (image URL is `None`), the video step shall be skipped and an appropriate error surfaced per NFR-3. | Must |
+| FR-7 | The system shall construct an image prompt programmatically from product name, tagline, and tone, then generate a **hero image** via OpenRouter's image generation model. | Must |
+| FR-8 | The system shall feed the generated hero image into OpenRouter's video generation model with a motion prompt to produce a **5–8 second promotional video**. If the hero image generation step fails (image URL is `None`), the video step shall be skipped and an appropriate error surfaced per NFR-3. | Must |
 | FR-9 | The system shall display all five generated assets simultaneously: text assets in the left column, image and video in the right column. | Must |
 | FR-10 | The system shall execute the calls in a defined sequential chain: Tagline → Blog Intro → Social Post → Hero Image → Video. | Must |
 | FR-11 | The system shall label each output card with the prompting technique that produced it. | Should |
@@ -66,7 +66,7 @@ button press.
 | ID | Requirement |
 |---|---|
 | NFR-1 | **Modularity** — Text, image, and video generation logic must live in separate modules (`text_gen.py`, `image_gen.py`, `video_gen.py`). |
-| NFR-2 | **Security** — Two API keys must be used: `CONTENT_API_KEY` for text and image generation, `RUNWAY_API_KEY` exclusively for video generation. Both must be loaded from environment variables (`.env`) and never hard-coded or logged. |
+| NFR-2 | **Security** — Two API keys must be used: `CONTENT_API_KEY` for text and image generation, `VIDEO_API_KEY` exclusively for video generation. Both must be loaded from environment variables (`.env`) and never hard-coded or logged. |
 | NFR-3 | **Resilience** — A failure in one generation step must not crash the entire app; the UI must surface a clear, actionable error per failed asset. |
 | NFR-4 | **Latency tolerance** — Given five sequential API calls (including image and video generation), total run time is expected to range from 30–90+ seconds under normal network conditions; the app must not time out or crash during this window and must communicate progress continuously so the user does not perceive the app as frozen. |
 | NFR-5 | **Consistency** — Outputs across the five calls must reflect the same brand tone and product context (no contradictory voice between tagline, blog, and social copy). |
@@ -88,13 +88,13 @@ button press.
 - Build time: 120 minutes.
 - Must use the provided scaffold (`app.py`, `config.py`) as the architectural baseline.
 - Must use **Streamlit** for the UI layer (no other frontend framework).
-- Must use **OpenRouter** for text generation calls, **GPT Image API** for image generation (both using a shared `CONTENT_API_KEY`), and **Runway API** for video generation (using a dedicated `RUNWAY_API_KEY`).
+- Must use **OpenRouter** for all generation calls: text and image via `CONTENT_API_KEY`, video via a dedicated `VIDEO_API_KEY`.
 
 ## 8. Lab Prerequisites (Assumptions)
 
 These are assumed to be true before development begins. The **instructor** is
 responsible for providing items marked *(instructor-provided)*.
 
-- A valid `CONTENT_API_KEY` *(instructor-provided)* (used for text and image generation) and `RUNWAY_API_KEY` *(instructor-provided)* (used exclusively for video generation) are available in `.env`.
-- The provided scaffold's client wrappers for OpenRouter, GPT Image, and Runway are functional and require no modification beyond integration *(instructor-provided)*.
+- A valid `CONTENT_API_KEY` *(instructor-provided)* (used for text and image generation) and `VIDEO_API_KEY` *(instructor-provided)* (used exclusively for video generation) are available in `.env`.
+- The provided scaffold's client wrappers for OpenRouter (text+image) and OpenRouter (video) are functional and require no modification beyond integration *(instructor-provided)*.
 - Internet connectivity is available for all external API calls.

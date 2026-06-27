@@ -32,10 +32,12 @@ the UI).
         │ HTTPS           │ HTTPS           │ HTTPS
         ▼                 ▼                 ▼
  ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
- │ OpenRouter  │   │ GPT Image   │   │  Runway API │
- │   API       │   │ API (gpt-   │   │ (image→video│
- │ (text LLMs) │   │  image-2)   │   │   model)    │
- └─────────────┘   └─────────────┘   └─────────────┘
+ │ OpenRouter  │   │ OpenRouter  │   │ OpenRouter  │
+ │ (text LLMs) │   │  (image     │   │  (video     │
+ │CONTENT_API  │   │  gen)       │   │  gen)       │
+ │    _KEY     │   │CONTENT_API  │   │VIDEO_API_KEY│
+ └─────────────┘   │    _KEY     │   └─────────────┘
+                   └─────────────┘
 ```
 
 ## 3. Module Breakdown
@@ -44,10 +46,10 @@ the UI).
 content-engine/
 ├─ app.py         # UI shell, orchestration, session state — PROVIDED
 ├─ text_gen.py    # Tagline, blog, social prompt logic       — BUILD
-├─ image_gen.py   # Image prompt formula + GPT Image client  — BUILD
-├─ video_gen.py   # Motion prompt + Runway client            — BUILD
+├─ image_gen.py   # Image prompt formula + OpenRouter image client  — BUILD
+├─ video_gen.py   # Motion prompt + OpenRouter video client            — BUILD
 ├─ config.py      # API keys, model names, constants         — PROVIDED
-└─ .env           # CONTENT_API_KEY=...  RUNWAY_API_KEY=...
+└─ .env           # CONTENT_API_KEY=...  VIDEO_API_KEY=...
 ```
 
 ### 3.1 `app.py` (provided)
@@ -89,8 +91,8 @@ def generate_video(image_url: str, motion_prompt: str) -> str: ...  # returns UR
 - Exposes pre-configured clients:
   - `openrouter_client` — authenticated with `CONTENT_API_KEY` (text generation)
   - `gpt_image_client` — authenticated with `CONTENT_API_KEY` (image generation)
-  - `runway_client` — authenticated with `RUNWAY_API_KEY` (video generation only)
-- Exposes model constants: `TEXT_MODEL`, `IMAGE_MODEL = "gpt-image-2"`, `VIDEO_MODEL`.
+  - `video_client` — authenticated with `VIDEO_API_KEY` (video generation only)
+- Exposes model constants: `TEXT_MODEL`, `IMAGE_MODEL = "openai/gpt-image-1"  # or whichever OpenRouter image model`, `VIDEO_MODEL`.
 
 ## 4. Orchestration Logic (the "chain")
 
@@ -185,7 +187,7 @@ re-triggering API calls unnecessarily:
 ## 6. Sequence Diagram (happy path)
 
 ```
-User      app.py        text_gen      image_gen    video_gen   OpenRouter  GPT Image  Runway
+User      app.py        text_gen      image_gen    video_gen   OpenRouter(content)   OpenRouter(video)
  │  fill    │               │              │            │           │           │         │
  │─────────▶│               │              │            │           │           │         │
  │ Generate │               │              │            │           │           │         │
@@ -219,9 +221,9 @@ User      app.py        text_gen      image_gen    video_gen   OpenRouter  GPT I
 | Layer | Technology |
 |---|---|
 | UI | Streamlit |
-| Text generation | OpenRouter (LLM gateway) |
-| Image generation | GPT Image API (`gpt-image-2`) |
-| Video generation | Runway API (image-to-video) |
+| Text generation | OpenRouter (`CONTENT_API_KEY`) |
+| Image generation | OpenRouter (`CONTENT_API_KEY`) |
+| Video generation | OpenRouter (`VIDEO_API_KEY`) |
 | Config/secrets | `python-dotenv` + `.env` |
 | Language | Python 3.10+ |
 
@@ -241,7 +243,10 @@ User      app.py        text_gen      image_gen    video_gen   OpenRouter  GPT I
 
 | Risk | Status | Mitigation |
 |---|---|---|
-| Video generation latency (Runway) may exceed typical user patience | Residual | Progressive rendering: show text + image immediately, video last, with explicit "rendering video…" status |
+| OpenRouter video generation latency may exceed typical user patience | Residual | Progressive rendering: show text + image immediately, video last, with explicit "rendering video…" status |
 | LLM may not strictly respect word/char limits | Residual | Post-hoc validation + retry as a safety net; truncation is a last resort only |
 | JSON parsing failures from the social post call | Mitigated | One retry with corrective prompt; fallback to raw-text display |
 | Image content policy rejections | Mitigated | Prompt simplification fallback (drop tagline reference) |
+ |
+) |
+ |

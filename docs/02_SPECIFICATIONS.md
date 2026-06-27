@@ -156,7 +156,7 @@ If `json.loads` fails, retry once with an appended instruction: `"Your last resp
 
 **Module:** `image_gen.py` → `build_image_prompt(product, tagline, tone)` + `generate_image(prompt)`
 **Technique:** Formula-based prompt construction
-**Model channel:** GPT Image API (`gpt-image-2`)
+**Model channel:** OpenRouter (image generation, `CONTENT_API_KEY`)
 
 **Prompt formula:** `Subject + Style(tone) + Composition + Constraints`
 
@@ -193,7 +193,7 @@ subject + style only).
 
 **Module:** `video_gen.py` → `generate_video(image_url, motion_prompt)`
 **Technique:** Image-to-video with motion prompt
-**Model channel:** Runway API
+**Model channel:** OpenRouter (video generation, `VIDEO_API_KEY`)
 
 **Motion prompt contract:**
 ```python
@@ -208,7 +208,7 @@ MOTION_PROMPT = (
 
 **Output contract:** A video file/URL, duration strictly between 5 and 8 seconds.
 
-**Validation rule:** If Runway returns a job ID for async processing, the app must poll until `status == "completed"` or a timeout (e.g., 90 seconds) is reached, surfacing a "video still rendering" state rather than blocking the rest of the UI.
+**Validation rule:** If OpenRouter returns a job ID for async processing, the app must poll until `status == "completed"` or a timeout (e.g., 90 seconds) is reached, surfacing a "video still rendering" state rather than blocking the rest of the UI.
 
 ---
 
@@ -243,7 +243,7 @@ MOTION_PROMPT = (
 | Blog Intro card | `st.markdown` in expander or container | Tagged "Role-based prompting" |
 | Social Post card | `st.tabs` (Twitter/Instagram/LinkedIn) or `st.json` | Tagged "Structured output" |
 | Hero Image card | `st.image` | Tagged "Image prompt formula" |
-| Video card | `st.video` | Tagged "Runway image-to-video" |
+| Video card | `st.video` | Tagged "OpenRouter image-to-video" |
 | Progress per step | `st.spinner` / `st.status` | One per pipeline stage |
 | Error display | `st.error` | Per-asset, non-blocking |
 
@@ -266,9 +266,9 @@ MOTION_PROMPT = (
 |---|---|
 | OpenRouter call fails (network/timeout) | Retry once after short backoff (e.g., 2s); on second failure, show `st.error` for that asset only, continue pipeline with placeholder text where downstream steps depend on it (e.g., empty tagline → blog intro proceeds with product/audience only, omitting the tagline weave instruction). |
 | Social JSON fails to parse | Retry once with corrective prompt; on second failure, display raw text with a warning banner instead of structured tabs. |
-| GPT Image call fails | Retry once with simplified prompt; on second failure, show placeholder image icon and `st.error`, skip Step 5 (video) since it requires the hero image. |
-| Runway call fails or times out | Show `st.error` with a "video generation failed/timed out" message; other four assets remain visible. |
-| Missing API key in `.env` | Fail fast at app startup with a clear `st.error` listing which key is missing (`CONTENT_API_KEY` and/or `RUNWAY_API_KEY`). |
+| OpenRouter image call fails | Retry once with simplified prompt; on second failure, show placeholder image icon and `st.error`, skip Step 5 (video) since it requires the hero image. |
+| OpenRouter video call fails or times out | Show `st.error` with a "video generation failed/timed out" message; other four assets remain visible. |
+| Missing API key in `.env` | Fail fast at app startup with a clear `st.error` listing which key is missing (`CONTENT_API_KEY` and/or `VIDEO_API_KEY`). |
 
 ---
 
@@ -292,5 +292,8 @@ CampaignSuite = {
         "tone": str,
         "errors": list,  # non-fatal errors encountered per step (see FR-18)
     },
+}
+```
+  },
 }
 ```

@@ -2,7 +2,7 @@
 
 **Course:** GenAI & Agentic AI Engineering — Day 3, Afternoon Lab
 **Build window:** 120 minutes
-**Stack:** Python 3.10+ · Streamlit · OpenRouter · GPT Image API (`gpt-image-2`) · Runway API · python-dotenv
+**Stack:** Python 3.10+ · Streamlit · OpenRouter (text, image, video) · python-dotenv
 
 ---
 
@@ -29,10 +29,10 @@ and motion-prompt image-to-video).
 content-engine/
 ├─ app.py            # Streamlit shell — provided
 ├─ text_gen.py       # Tagline, blog, social prompts — build
-├─ image_gen.py      # Image prompt + GPT Image call — build
-├─ video_gen.py      # Motion prompt + Runway call — build
+├─ image_gen.py      # Image prompt + OpenRouter image call — build
+├─ video_gen.py      # Motion prompt + OpenRouter video call — build
 ├─ config.py         # API keys + model settings — provided
-└─ .env              # CONTENT_API_KEY=...  RUNWAY_API_KEY=...
+└─ .env              # CONTENT_API_KEY=...  VIDEO_API_KEY=...
 ```
 
 ## Quick Start
@@ -64,4 +64,5 @@ streamlit run app.py
   respect platform character limits.
 - Hero image matches product + tone; video is a clean 5–8 second clip.
 - A peer reviewer can run a **different** product through the engine and
+  it holds up without code changes.
   it holds up without code changes.
