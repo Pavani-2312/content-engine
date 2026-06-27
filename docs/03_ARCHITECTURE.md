@@ -41,13 +41,13 @@ the UI).
 ## 3. Module Breakdown
 
 ```
-content_engine/
-├─ app.py            # UI shell, orchestration, session state — PROVIDED
-├─ text_gen.py        # Tagline, blog, social prompt logic       — BUILD
-├─ image_gen.py       # Image prompt formula + GPT Image client  — BUILD
-├─ video_gen.py        # Motion prompt + Runway client            — BUILD
-├─ config.py          # API keys, model names, constants         — PROVIDED
-└─ .env               # OPENROUTER_API_KEY=...  RUNWAY_API_KEY=...
+content-engine/
+├─ app.py         # UI shell, orchestration, session state — PROVIDED
+├─ text_gen.py    # Tagline, blog, social prompt logic       — BUILD
+├─ image_gen.py   # Image prompt formula + GPT Image client  — BUILD
+├─ video_gen.py   # Motion prompt + Runway client            — BUILD
+├─ config.py      # API keys, model names, constants         — PROVIDED
+└─ .env           # OPENROUTER_API_KEY=...  RUNWAY_API_KEY=...
 ```
 
 ### 3.1 `app.py` (provided)
@@ -113,6 +113,8 @@ def run_pipeline(brief: dict) -> dict:
         fallback={}, errors=errors, step="social"
     )
 
+    # build_image_prompt is a pure, non-network function; wrap it
+    # in safe_call only if custom tone keys might cause KeyErrors.
     image_prompt = build_image_prompt(brief["product"], tagline, brief["tone"])
     image_url = safe_call(
         lambda: generate_image(image_prompt),
@@ -137,9 +139,31 @@ def run_pipeline(brief: dict) -> dict:
     }
 ```
 
-`safe_call` is a small wrapper implementing the retry-once policy described
-in the specifications document — isolated so all five steps share one
-error-handling code path rather than five duplicated try/except blocks.
+### `safe_call` contract
+
+`safe_call` is a small helper that implements the retry-once policy shared
+by all five steps:
+
+```python
+def safe_call(fn, *, fallback, errors: list, step: str):
+    """
+    Call fn(). On any exception, retry once after a short backoff.
+    On second failure, append an error entry to `errors` and return `fallback`.
+    """
+    import time
+    try:
+        return fn()
+    except Exception as e:
+        time.sleep(2)
+        try:
+            return fn()
+        except Exception as e2:
+            errors.append({"step": step, "error": str(e2)})
+            return fallback
+```
+
+All five pipeline steps share this single error-handling code path rather
+than five duplicated try/except blocks.
 
 ## 5. State Management
 
@@ -158,23 +182,33 @@ re-triggering API calls unnecessarily:
 ## 6. Sequence Diagram (happy path)
 
 ```
-User        Streamlit(app.py)      text_gen        image_gen       video_gen
- │  fill form    │                    │                │               │
- │──────────────▶│                    │                │               │
- │  click Generate│                   │                │               │
- │──────────────▶│                    │                │               │
- │               │── generate_tagline ───▶│             │               │
- │               │◀──── tagline ──────────│             │               │
- │               │── generate_blog_intro ─▶│            │               │
- │               │◀──── blog_intro ───────│             │               │
- │               │── generate_social_post ▶│            │               │
- │               │◀──── social JSON ──────│             │               │
- │               │── build_image_prompt ──────────────▶│               │
- │               │── generate_image ──────────────────▶│               │
- │               │◀──── image_url ─────────────────────│               │
- │               │── generate_video(image_url) ───────────────────────▶│
- │               │◀──── video_url ───────────────────────────────────│
- │◀── render all 5 assets ──│           │                │               │
+User      app.py        text_gen      image_gen    video_gen   OpenRouter  GPT Image  Runway
+ │  fill    │               │              │            │           │           │         │
+ │─────────▶│               │              │            │           │           │         │
+ │ Generate │               │              │            │           │           │         │
+ │─────────▶│               │              │            │           │           │         │
+ │          │─generate_tagline────────────▶│            │           │           │         │
+ │          │               │──── prompt ─────────────────────────▶│           │         │
+ │          │               │◀─── tagline ────────────────────────│           │         │
+ │          │◀──tagline─────│              │            │           │           │         │
+ │          │─generate_blog_intro─────────▶│            │           │           │         │
+ │          │               │──── prompt ─────────────────────────▶│           │         │
+ │          │               │◀─── blog ───────────────────────────│           │         │
+ │          │◀──blog_intro──│              │            │           │           │         │
+ │          │─generate_social_post────────▶│            │           │           │         │
+ │          │               │──── prompt ─────────────────────────▶│           │         │
+ │          │               │◀─── JSON ───────────────────────────│           │         │
+ │          │◀──social───────│              │            │           │           │         │
+ │          │─build_image_prompt + generate_image───────▶│          │           │         │
+ │          │               │              │──── prompt ──────────────────────▶│         │
+ │          │               │              │◀─── image_url ───────────────────│         │
+ │          │◀──image_url───────────────────│            │           │           │         │
+ │ (render) │               │              │            │           │           │         │
+ │          │─generate_video(image_url)─────────────────▶│          │           │         │
+ │          │               │              │            │──── req ──────────────────────▶│
+ │          │               │              │            │◀─── video_url ────────────────│
+ │          │◀──video_url───────────────────────────────│           │           │         │
+ │◀─render all 5─│           │              │            │           │           │         │
 ```
 
 ## 7. Technology Stack
@@ -202,9 +236,9 @@ User        Streamlit(app.py)      text_gen        image_gen       video_gen
 
 ## 9. Known Limitations / Risks
 
-| Risk | Mitigation |
-|---|---|
-| Video generation latency (Runway) may exceed typical user patience | Progressive rendering: show text + image immediately, video last, with explicit "rendering video…" status |
-| LLM may not strictly respect word/char limits | Post-hoc validation + truncation as a safety net, not just prompt instruction |
-| JSON parsing failures from the social post call | One retry with corrective prompt; fallback to raw-text display |
-| Image content policy rejections | Prompt simplification fallback (drop tagline reference) |
+| Risk | Status | Mitigation |
+|---|---|---|
+| Video generation latency (Runway) may exceed typical user patience | Residual | Progressive rendering: show text + image immediately, video last, with explicit "rendering video…" status |
+| LLM may not strictly respect word/char limits | Residual | Post-hoc validation + retry as a safety net; truncation is a last resort only |
+| JSON parsing failures from the social post call | Mitigated | One retry with corrective prompt; fallback to raw-text display |
+| Image content policy rejections | Mitigated | Prompt simplification fallback (drop tagline reference) |

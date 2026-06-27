@@ -78,7 +78,8 @@ Generate a new, original tagline for this product. Do not reuse the examples.
 
 **Output contract:** Plain string, ≤10 words, no hashtags, no surrounding quotes.
 
-**Validation rule:** If word count > 10 or contains `#`, strip/truncate or retry once with a corrective instruction appended.
+**Validation rule:** If word count > 10 or contains `#`, retry once with the
+corrective instruction `"Your tagline was too long or contained a hashtag. Regenerate: one tagline, max 10 words, no hashtags."` appended. Do not silently truncate, as cutting mid-phrase produces broken copy.
 
 ---
 
@@ -96,11 +97,16 @@ Weave in the campaign tagline: "{tagline}".
 Tone: {tone}.
 ```
 
+If `tagline` is an empty string (upstream failure), omit the tagline
+instruction line from the system prompt rather than injecting a blank
+`Weave in the campaign tagline: "".`
+
 **Output contract:** Plain text, target length 200 words (±10% tolerance =
 180–220 words), must contain the tagline text verbatim or near-verbatim at
-least once.
+least once (skipped if `tagline` is empty).
 
-**Validation rule:** If word count falls outside tolerance, log a warning but do not block rendering (soft constraint).
+**Validation rule:** If word count falls outside tolerance, log a warning to
+`meta.errors` (soft constraint; do not block rendering).
 
 ---
 
@@ -109,6 +115,11 @@ least once.
 **Module:** `text_gen.py` → `generate_social_post(product, tone)`
 **Technique:** Structured JSON output
 **Model channel:** OpenRouter (text)
+
+> **Note:** `audience` and `tagline` are intentionally excluded from this
+> function's signature. The prompt focuses strictly on platform character
+> constraints and tone; brand consistency is carried by the shared `tone`
+> value rather than by repeating the tagline verbatim in every platform post.
 
 **System prompt contract:**
 ```
@@ -123,15 +134,19 @@ Tone: {tone}. No markdown fences.
 `instagram`, `linkedin`. No markdown code fences, no extra commentary text
 outside the JSON.
 
-**Parsing rule:**
+**Parsing rule (illustrative pseudo-code — use `if/raise`, not `assert`):**
 ```python
 import json
 raw = response.strip().strip("`").strip()
 social = json.loads(raw)
-assert set(social.keys()) == {"twitter", "instagram", "linkedin"}
-assert len(social["twitter"]) <= 280
-assert len(social["instagram"]) <= 2200
-assert len(social["linkedin"]) <= 700
+if set(social.keys()) != {"twitter", "instagram", "linkedin"}:
+    raise ValueError("Unexpected keys in social JSON")
+if len(social["twitter"]) > 280:
+    raise ValueError("twitter exceeds 280 chars")
+if len(social["instagram"]) > 2200:
+    raise ValueError("instagram exceeds 2200 chars")
+if len(social["linkedin"]) > 700:
+    raise ValueError("linkedin exceeds 700 chars")
 ```
 If `json.loads` fails, retry once with an appended instruction: `"Your last response was not valid JSON. Return ONLY the JSON object, nothing else."`
 
@@ -154,11 +169,16 @@ STYLE_MAP = {
 
 def build_image_prompt(product, tagline, tone):
     style = STYLE_MAP.get(tone, "clean modern")
+    tagline_hint = f' Evoke the feeling of: "{tagline}".' if tagline else ""
     return (
-        f"A {style} of {product}. "
+        f"A {style} of {product}."
+        f"{tagline_hint} "
         f"Centred, shallow DOF, 16:9. No text, no logos."
     )
 ```
+
+> `tagline` is included in the prompt when available so the image mood aligns
+> with the campaign copy; the parameter must not be silently discarded.
 
 **Output contract:** A single image (URL or base64), aspect ratio 16:9, no
 embedded text/logos per the constraint clause.
@@ -180,7 +200,7 @@ subject + style only).
 MOTION_PROMPT = (
     "Slow cinematic push-in. "
     "Soft light shifts gently. "
-    "Background mostly still. 5 seconds."
+    "Background mostly still. 5 to 8 seconds."
 )
 ```
 
@@ -197,17 +217,17 @@ MOTION_PROMPT = (
 ### 4.1 Layout
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ Sidebar                  │ Main Area                │
-│ ┌───────────────────┐    │ ┌───────────┬───────────┐│
-│ │ Product Name       │    │ │  TEXT     │  VISUAL   ││
-│ │ Target Audience     │    │ │  COLUMN   │  COLUMN   ││
-│ │ Brand Tone (select) │    │ │           │           ││
-│ │ [Generate] button   │    │ │ Tagline   │  Image    ││
-│ └───────────────────┘    │ │ Blog Intro│  Video    ││
-│                           │ │ Social    │           ││
-│                           │ └───────────┴───────────┘│
-└─────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────┐
+│ Sidebar                   │ Main Area                  │
+│ ┌─────────────────────┐   │ ┌────────────┬────────────┐│
+│ │ Product Name        │   │ │  TEXT      │  VISUAL    ││
+│ │ Target Audience     │   │ │  COLUMN    │  COLUMN    ││
+│ │ Brand Tone (select) │   │ │            │            ││
+│ │ [Generate] button   │   │ │ Tagline    │  Image     ││
+│ └─────────────────────┘   │ │ Blog Intro │  Video     ││
+│                            │ │ Social     │            ││
+│                            │ └────────────┴────────────┘│
+└───────────────────────────────────────────────────────┘
 ```
 
 ### 4.2 Component Specification
@@ -244,7 +264,7 @@ MOTION_PROMPT = (
 
 | Failure Point | Behavior |
 |---|---|
-| OpenRouter call fails (network/timeout) | Retry once after short backoff (e.g., 2s); on second failure, show `st.error` for that asset only, continue pipeline with placeholder text where downstream steps depend on it (e.g., empty tagline → blog intro proceeds with product/audience only). |
+| OpenRouter call fails (network/timeout) | Retry once after short backoff (e.g., 2s); on second failure, show `st.error` for that asset only, continue pipeline with placeholder text where downstream steps depend on it (e.g., empty tagline → blog intro proceeds with product/audience only, omitting the tagline weave instruction). |
 | Social JSON fails to parse | Retry once with corrective prompt; on second failure, display raw text with a warning banner instead of structured tabs. |
 | GPT Image call fails | Retry once with simplified prompt; on second failure, show placeholder image icon and `st.error`, skip Step 5 (video) since it requires the hero image. |
 | Runway call fails or times out | Show `st.error` with a "video generation failed/timed out" message; other four assets remain visible. |
@@ -270,7 +290,7 @@ CampaignSuite = {
         "product": str,
         "audience": str,
         "tone": str,
-        "errors": list,  # any non-fatal errors encountered per step
+        "errors": list,  # non-fatal errors encountered per step (see FR-18)
     },
 }
 ```

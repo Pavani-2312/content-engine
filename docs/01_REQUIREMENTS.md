@@ -47,14 +47,15 @@ button press.
 | FR-3 | The system shall generate a campaign **tagline** using few-shot prompting, with examples selected/conditioned by the chosen tone. | Must |
 | FR-4 | The tagline shall be a maximum of 10 words and shall contain no hashtags. | Must |
 | FR-5 | The system shall generate a **200-word blog introduction** using role-based prompting (persona: content strategist), incorporating the tagline generated in FR-3. | Must |
-| FR-6 | The system shall generate a **social media post set** as structured JSON output containing `twitter` (≤280 chars), `instagram` (≤2200 chars), and `linkedin` (≤700 chars) fields. | Must |
+| FR-6 | The system shall generate a **social media post set** as structured JSON output containing `twitter` (≤280 chars), `instagram` (≤2200 chars), and `linkedin` (≤700 chars) fields. The social post generator receives `product` and `tone` only; `audience` and `tagline` are intentionally omitted from this step to keep the prompt focused on platform-specific copy constraints. | Must |
 | FR-7 | The system shall construct an image prompt programmatically from product name, tagline, and tone, then generate a **hero image** via the GPT Image API (`gpt-image-2`). | Must |
-| FR-8 | The system shall feed the generated hero image into the Runway API with a motion prompt to produce a **5–8 second promotional video**. | Must |
+| FR-8 | The system shall feed the generated hero image into the Runway API with a motion prompt to produce a **5–8 second promotional video**. If the hero image generation step fails (image URL is `None`), the video step shall be skipped and an appropriate error surfaced per NFR-3. | Must |
 | FR-9 | The system shall display all five generated assets simultaneously: text assets in the left column, image and video in the right column. | Must |
 | FR-10 | The system shall execute the calls in a defined sequential chain: Tagline → Blog Intro → Social Post → Hero Image → Video. | Must |
 | FR-11 | The system shall label each output card with the prompting technique that produced it. | Should |
 | FR-12 | The system shall retry a failed API call at least once before surfacing an error to the user. | Should |
 | FR-13 | The system shall display a loading/progress indicator for each of the five steps while generation is in progress. | Should |
+| FR-18 | The system shall record non-fatal errors encountered during pipeline execution in a `meta.errors` list returned as part of the `CampaignSuite` result, and display them in the UI. | Should |
 | FR-14 (Stretch) | The system may generate a voiceover audio track from the blog introduction text. | Could |
 | FR-15 (Stretch) | The system may generate two tagline variants and let the user select one before proceeding. | Could |
 | FR-16 (Stretch) | The system may allow tone changes that trigger a full regeneration cascade. | Could |
@@ -67,12 +68,12 @@ button press.
 | NFR-1 | **Modularity** — Text, image, and video generation logic must live in separate modules (`text_gen.py`, `image_gen.py`, `video_gen.py`). |
 | NFR-2 | **Security** — API keys must be loaded from environment variables (`.env`) and never hard-coded or logged. |
 | NFR-3 | **Resilience** — A failure in one generation step must not crash the entire app; the UI must surface a clear, actionable error per failed asset. |
-| NFR-4 | **Latency tolerance** — Given five sequential API calls (including image and video generation), total run time may reasonably range from 30–90+ seconds; the UI must communicate progress so the user does not perceive the app as frozen. |
+| NFR-4 | **Latency tolerance** — Given five sequential API calls (including image and video generation), total run time is expected to range from 30–90+ seconds under normal network conditions; the app must not time out or crash during this window and must communicate progress continuously so the user does not perceive the app as frozen. |
 | NFR-5 | **Consistency** — Outputs across the five calls must reflect the same brand tone and product context (no contradictory voice between tagline, blog, and social copy). |
 | NFR-6 | **Reproducibility** — Given the same inputs, the prompting logic (not necessarily the model's stochastic output) must be deterministic in structure. |
 | NFR-7 | **Readability** — Each prompt template must be isolated, named, and documented with the technique it demonstrates (few-shot, role-based, structured output, formula-based, motion-prompt). |
 
-## 6. Acceptance Criteria ("Done by 3:00")
+## 6. Acceptance Criteria
 
 1. The app generates all five assets in a single run from one product brief.
 2. The tagline's brand voice matches the selected tone.
@@ -89,8 +90,11 @@ button press.
 - Must use **Streamlit** for the UI layer (no other frontend framework).
 - Must use **OpenRouter** for text generation calls, **GPT Image API** for image generation, and **Runway API** for video generation.
 
-## 8. Assumptions
+## 8. Lab Prerequisites (Assumptions)
 
-- A valid `OPENROUTER_API_KEY` and `RUNWAY_API_KEY` are available in `.env`.
-- The provided scaffold's client wrappers for OpenRouter, GPT Image, and Runway are functional and require no modification beyond integration.
+These are assumed to be true before development begins. The **instructor** is
+responsible for providing items marked *(instructor-provided)*.
+
+- A valid `OPENROUTER_API_KEY` *(instructor-provided)* and `RUNWAY_API_KEY` *(instructor-provided)* are available in `.env`.
+- The provided scaffold's client wrappers for OpenRouter, GPT Image, and Runway are functional and require no modification beyond integration *(instructor-provided)*.
 - Internet connectivity is available for all external API calls.

@@ -2,7 +2,7 @@
 
 **Course:** GenAI & Agentic AI Engineering — Day 3, Afternoon Lab
 **Build window:** 120 minutes
-**Stack:** Streamlit · OpenRouter · GPT Image API (`gpt-image-2`) · Runway API
+**Stack:** Python 3.10+ · Streamlit · OpenRouter · GPT Image API (`gpt-image-2`) · Runway API · python-dotenv
 
 ---
 
@@ -26,13 +26,26 @@ and motion-prompt image-to-video).
 ## Project Structure Reference
 
 ```
-content_engine/
+content-engine/
 ├─ app.py            # Streamlit shell — provided
 ├─ text_gen.py       # Tagline, blog, social prompts — build
 ├─ image_gen.py      # Image prompt + GPT Image call — build
 ├─ video_gen.py      # Motion prompt + Runway call — build
 ├─ config.py         # API keys + model settings — provided
 └─ .env              # OPENROUTER_API_KEY=...  RUNWAY_API_KEY=...
+```
+
+## Quick Start
+
+```bash
+# 1. Copy the env template and fill in your keys
+cp .env.example .env
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Run the app
+streamlit run app.py
 ```
 
 ## Suggested Reading Order
@@ -46,7 +59,6 @@ content_engine/
 
 ## Definition of Done
 
-Per the brief's "Done by 3:00" checklist:
 - All five assets generate in one run from a single product brief.
 - Tagline matches the selected tone; blog echoes the tagline; social posts
   respect platform character limits.
