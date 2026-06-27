@@ -17,20 +17,40 @@ def build_image_prompt(product: str, tagline: str, tone: str) -> str:
 
 def generate_image(prompt: str) -> str:
     try:
-        response = image_client.images.generate(
+        # OpenRouter uses chat completions for image generation
+        response = image_client.chat.completions.create(
             model=IMAGE_MODEL,
-            prompt=prompt,
-            n=1,
-            size="1792x1024"
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            max_tokens=1000
         )
-        return response.data[0].url
-    except Exception:
+        
+        # Extract image URL from response
+        content = response.choices[0].message.content
+        
+        # If content is a URL, return it
+        if content and content.startswith("http"):
+            return content
+        
+        # Otherwise, it might be base64 or need parsing
+        return content
+        
+    except Exception as e:
         # Retry with simplified prompt
         simplified = prompt.split("Evoke")[0].strip()
-        response = image_client.images.generate(
+        response = image_client.chat.completions.create(
             model=IMAGE_MODEL,
-            prompt=simplified,
-            n=1,
-            size="1792x1024"
+            messages=[
+                {
+                    "role": "user",
+                    "content": simplified
+                }
+            ],
+            max_tokens=1000
         )
-        return response.data[0].url
+        content = response.choices[0].message.content
+        return content if content.startswith("http") else content
