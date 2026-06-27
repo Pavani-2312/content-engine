@@ -1,4 +1,4 @@
-from config import image_client, IMAGE_MODEL
+from config import image_client, TEXT_MODEL
 
 STYLE_MAP = {
     "playful": "bright flat illustration",
@@ -17,40 +17,67 @@ def build_image_prompt(product: str, tagline: str, tone: str) -> str:
 
 def generate_image(prompt: str) -> str:
     try:
-        # OpenRouter uses chat completions for image generation
         response = image_client.chat.completions.create(
-            model=IMAGE_MODEL,
+            model=TEXT_MODEL,
             messages=[
                 {
                     "role": "user",
-                    "content": prompt
+                    "content": f"Generate an image: {prompt}"
                 }
             ],
-            max_tokens=1000
+            tools=[
+                {
+                    "type": "openrouter:image_generation"
+                }
+            ]
         )
         
-        # Extract image URL from response
-        content = response.choices[0].message.content
+        # Extract image URL from tool call response
+        message = response.choices[0].message
         
-        # If content is a URL, return it
-        if content and content.startswith("http"):
-            return content
+        # Check if tool was called
+        if hasattr(message, 'tool_calls') and message.tool_calls:
+            # Image URL should be in the tool call result
+            return message.tool_calls[0].function.arguments
         
-        # Otherwise, it might be base64 or need parsing
+        # Otherwise check content for URL
+        content = message.content
+        if content and "http" in content:
+            # Extract URL from content
+            import re
+            urls = re.findall(r'https?://[^\s]+', content)
+            if urls:
+                return urls[0]
+        
         return content
         
     except Exception as e:
         # Retry with simplified prompt
         simplified = prompt.split("Evoke")[0].strip()
         response = image_client.chat.completions.create(
-            model=IMAGE_MODEL,
+            model=TEXT_MODEL,
             messages=[
                 {
                     "role": "user",
-                    "content": simplified
+                    "content": f"Generate an image: {simplified}"
                 }
             ],
-            max_tokens=1000
+            tools=[
+                {
+                    "type": "openrouter:image_generation"
+                }
+            ]
         )
-        content = response.choices[0].message.content
-        return content if content.startswith("http") else content
+        
+        message = response.choices[0].message
+        if hasattr(message, 'tool_calls') and message.tool_calls:
+            return message.tool_calls[0].function.arguments
+        
+        content = message.content
+        if content and "http" in content:
+            import re
+            urls = re.findall(r'https?://[^\s]+', content)
+            if urls:
+                return urls[0]
+        
+        return content

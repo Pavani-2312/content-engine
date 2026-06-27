@@ -35,5 +35,4 @@ video_client = OpenAI(
 
 # Model constants
 TEXT_MODEL = "openai/gpt-4o-mini"
-IMAGE_MODEL = "black-forest-labs/flux-1.1-pro"  # OpenRouter image generation model
 VIDEO_MODEL = "google/veo-2"  # OpenRouter video generation model
